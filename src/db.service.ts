@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
 import { Pool } from 'pg';
+import { msg } from './util';
 
-const msg = (e: unknown) => (e instanceof Error ? e.message || e.name : String(e));
 
 @Injectable()
 export class DbService implements OnModuleInit {

@@ -1,8 +1,8 @@
 import { Injectable, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
 import { GetObjectCommand, HeadBucketCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { msg } from './util';
 
-const msg = (e: unknown) => (e instanceof Error ? e.message || e.name : String(e));
 
 @Injectable()
 export class S3Service implements OnModuleInit {
