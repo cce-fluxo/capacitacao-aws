@@ -46,6 +46,7 @@
 <main>
   <section class="card" id="c-server">
     <div class="head"><h2>Servidor · EC2</h2><span class="badge" data-badge></span></div>
+    <p class="errmsg" data-err hidden></p>
     <dl id="server"></dl>
   </section>
 
@@ -82,12 +83,14 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;
 function setCard(card, st) {
   const state = !st.configured ? 'off' : st.ok ? 'on' : 'err';
   card.className = 'card ' + state;
-  card.querySelector('[data-badge]').textContent = { off:'não configurado', on:'no ar', err:'erro' }[state];
-  card.querySelector('[data-hint]').hidden = state !== 'off';
-  const err = card.querySelector('[data-err]');
-  err.hidden = state !== 'err';
-  err.textContent = st.error || '';
-  card.querySelector('[data-body]').hidden = state !== 'on';
+  const q = (sel) => card.querySelector(sel); // o cartão do servidor não tem hint/err/body
+  q('[data-badge]').textContent = { off:'não configurado', on:'no ar', err:'erro' }[state];
+  if (q('[data-hint]')) q('[data-hint]').hidden = state !== 'off';
+  if (q('[data-err]')) {
+    q('[data-err]').hidden = state !== 'err';
+    q('[data-err]').textContent = st.error || '';
+  }
+  if (q('[data-body]')) q('[data-body]').hidden = state !== 'on';
   return state;
 }
 
