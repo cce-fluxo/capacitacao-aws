@@ -63,7 +63,7 @@ swapon /swapfile
 ### 2.3 App
 ```bash
 cd /opt
-git clone <URL-DO-REPO> app
+git clone <https://github.com/cce-fluxo/capacitacao-aws> app
 cd app
 npm ci
 npm run build
