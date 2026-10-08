@@ -3,7 +3,8 @@ export function msg(e: unknown): string {
   if (e instanceof AggregateError && e.errors.length) return msg(e.errors[0]);
   if (e instanceof Error) {
     const code = (e as { code?: string }).code;
-    return e.message || code || e.name;
+    const http = (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode; // erros do SDK da AWS
+    return (e.message || code || e.name) + (http ? ` (HTTP ${http})` : '');
   }
   return String(e);
 }
