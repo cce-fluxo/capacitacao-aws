@@ -1,0 +1,8 @@
+# Só para teste local. Use com DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres e DB_SSL=false
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"

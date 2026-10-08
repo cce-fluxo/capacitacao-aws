@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capacitação AWS · CCE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=League+Spartan:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#EBEAEA; --text:#1A1A1A; --dark:#2B2829; --pink:#E07A9E; --pink-d:#B24D74; --pink-l:#F4D9E3; --card:#F7F6F6; --grey:#7a7677; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:32px; background:var(--bg); color:var(--text); font-family:'League Spartan',sans-serif; font-size:24px; }
+  h1,h2 { font-family:'Bebas Neue',sans-serif; font-weight:400; letter-spacing:.04em; margin:0; }
+  h1 { font-size:72px; color:var(--dark); margin-bottom:24px; }
+  h1 span { color:var(--pink-d); }
+  h2 { font-size:44px; }
+  main { display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:24px; align-items:start; }
+  .card { background:var(--card); border:4px dashed #b5b2b3; border-radius:16px; padding:24px; color:var(--grey); }
+  .card.on { border:4px solid var(--pink); background:var(--pink-l); color:var(--text); }
+  .card.err { border:4px solid var(--pink-d); background:var(--pink-l); color:var(--text); }
+  .head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+  .badge { font-size:18px; font-weight:700; text-transform:uppercase; padding:4px 14px; border-radius:99px; background:#d6d3d4; color:var(--dark); white-space:nowrap; }
+  .on .badge { background:var(--pink); color:#fff; }
+  .err .badge { background:var(--pink-d); color:#fff; }
+  .hint, .errmsg { font-size:20px; word-break:break-word; }
+  .errmsg { color:var(--pink-d); font-weight:600; }
+  code { background:var(--dark); color:#fff; padding:2px 8px; border-radius:6px; }
+  dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 16px; }
+  dt { color:var(--pink-d); font-weight:700; }
+  dd { margin:0; word-break:break-all; }
+  .row { display:flex; gap:8px; margin:12px 0; }
+  input[type=text] { flex:1; min-width:0; font:inherit; padding:8px 12px; border:3px solid var(--dark); border-radius:8px; background:#fff; }
+  button { font:inherit; font-weight:700; padding:8px 18px; border:0; border-radius:8px; background:var(--pink-d); color:#fff; cursor:pointer; }
+  button:disabled { opacity:.5; }
+  input[type=file] { font:inherit; font-size:20px; margin:12px 0; max-width:100%; }
+  ul { list-style:none; padding:0; margin:0; }
+  li { padding:6px 0; border-top:2px solid var(--pink); word-break:break-word; }
+  li small { color:var(--grey); font-size:16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; margin-top:12px; }
+  .grid img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; border:3px solid var(--pink); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<h1>CAPACITAÇÃO AWS · <span>CCE</span></h1>
+<main>
+  <section class="card" id="c-server">
+    <div class="head"><h2>Servidor · EC2</h2><span class="badge" data-badge></span></div>
+    <dl id="server"></dl>
+  </section>
+
+  <section class="card" id="c-db">
+    <div class="head"><h2>Banco · RDS</h2><span class="badge" data-badge></span></div>
+    <p class="hint" data-hint hidden>Falta <code>DATABASE_URL</code> no .env</p>
+    <p class="errmsg" data-err hidden></p>
+    <div data-body hidden>
+      <div class="row">
+        <input type="text" id="note" maxlength="280" placeholder="Escreva uma nota…">
+        <button id="save">Salvar nota</button>
+      </div>
+      <ul id="notes"></ul>
+    </div>
+  </section>
+
+  <section class="card" id="c-s3">
+    <div class="head"><h2>Arquivos · S3</h2><span class="badge" data-badge></span></div>
+    <p class="hint" data-hint hidden>Falta <code>S3_BUCKET</code> no .env</p>
+    <p class="errmsg" data-err hidden></p>
+    <div data-body hidden>
+      <input type="file" id="file" accept="image/*">
+      <div id="upmsg"></div>
+      <div class="grid" id="gallery"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+// Aplica o estado (aceso / apagado / erro) a um cartão
+function setCard(card, st) {
+  const state = !st.configured ? 'off' : st.ok ? 'on' : 'err';
+  card.className = 'card ' + state;
+  card.querySelector('[data-badge]').textContent = { off:'não configurado', on:'no ar', err:'erro' }[state];
+  card.querySelector('[data-hint]').hidden = state !== 'off';
+  const err = card.querySelector('[data-err]');
+  err.hidden = state !== 'err';
+  err.textContent = st.error || '';
+  card.querySelector('[data-body]').hidden = state !== 'on';
+  return state;
+}
+
+function fmtUptime(s) {
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+  return (h ? h + 'h ' : '') + (h || m ? m + 'min ' : '') + (s % 60) + 's';
+}
+
+async function loadNotes() {
+  const r = await fetch('/api/notes');
+  if (!r.ok) return;
+  const notes = await r.json();
+  $('notes').innerHTML = notes.map((n) =>
+    `<li>${esc(n.text)} <small>${new Date(n.created_at).toLocaleTimeString('pt-BR')}</small></li>`).join('');
+}
+
+async function loadGallery() {
+  const r = await fetch('/api/uploads');
+  if (!r.ok) return;
+  const files = await r.json();
+  $('gallery').innerHTML = files.map((f) => `<a href="${esc(f.url)}" target="_blank"><img src="${esc(f.url)}" alt=""></a>`).join('');
+}
+
+let prevS3 = false;
+async function poll() {
+  try {
+    const s = await (await fetch('/api/status')).json();
+    const sv = s.server;
+    setCard($('c-server'), { configured: true, ok: true });
+    $('server').innerHTML = [
+      ['Instância', sv.instanceId], ['Zona', sv.availabilityZone], ['Tipo', sv.instanceType],
+      ['Hostname', sv.hostname], ['Uptime', fmtUptime(sv.uptimeSeconds)],
+    ].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
+
+    const db = setCard($('c-db'), s.db) === 'on';
+    if (db) await loadNotes();
+    const s3 = setCard($('c-s3'), s.s3) === 'on';
+    if (s3 && !prevS3) await loadGallery();
+    prevS3 = s3;
+  } catch (e) {
+    setCard($('c-server'), { configured: true, ok: false, error: 'API fora do ar: ' + e.message });
+  }
+}
+
+$('save').onclick = async () => {
+  const text = $('note').value.trim();
+  if (!text) return;
+  $('save').disabled = true;
+  try {
+    const r = await fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    if (r.ok) { $('note').value = ''; await loadNotes(); }
+    else alert((await r.json()).message);
+  } finally { $('save').disabled = false; }
+};
+$('note').onkeydown = (e) => { if (e.key === 'Enter') $('save').click(); };
+
+$('file').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  $('upmsg').textContent = 'enviando…';
+  try {
+    const p = await fetch('/api/uploads/presign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name, contentType: file.type }) });
+    if (!p.ok) throw new Error((await p.json()).message);
+    const { uploadUrl } = await p.json();
+    const put = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+    if (!put.ok) throw new Error('S3 respondeu ' + put.status);
+    $('upmsg').textContent = 'enviado ✔';
+    await loadGallery();
+  } catch (err) {
+    $('upmsg').innerHTML = `<span class="errmsg">Falha no envio: ${esc(err.message)}</span>`;
+  }
+  e.target.value = '';
+};
+
+poll();
+setInterval(poll, 5000);
+</script>
+</body>
+</html>
